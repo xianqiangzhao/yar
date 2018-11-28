@@ -37,7 +37,7 @@ extern zend_module_entry yar_module_entry;
 #include "TSRM.h"
 #endif
 
-#define PHP_YAR_VERSION  "2.0.3-dev"
+#define PHP_YAR_VERSION  "2.0.5-dev"
 
 PHP_MINIT_FUNCTION(yar);
 PHP_MSHUTDOWN_FUNCTION(yar);
@@ -48,8 +48,8 @@ PHP_MINFO_FUNCTION(yar);
 ZEND_BEGIN_MODULE_GLOBALS(yar)
 	char *default_packager;
 	char *default_transport;
-    struct _yar_packager *packager;
-    struct _yar_transport *transport;
+    const struct _yar_packager *packager;
+    const struct _yar_transport *transport;
     struct _yar_request *request;
     struct _yar_response *response;
 	char *content_type;
@@ -87,10 +87,11 @@ extern ZEND_DECLARE_MODULE_GLOBALS(yar);
 #define Z_DELREF_P 	 ZVAL_DELREF
 #endif
 
-#define YAR_OPT_PACKAGER 			0x01
-#define YAR_OPT_PERSISTENT 			0x02
-#define YAR_OPT_TIMEOUT  			0x04
-#define YAR_OPT_CONNECT_TIMEOUT 	0x08
+#define YAR_OPT_PACKAGER 			(1<<0)	
+#define YAR_OPT_PERSISTENT 			(1<<1)
+#define YAR_OPT_TIMEOUT  			(1<<2)
+#define YAR_OPT_CONNECT_TIMEOUT 	(1<<3)
+#define YAR_OPT_HEADER				(1<<4)
 
 #define YAR_STASH_VARIABLES()  \
 		zend_bool _old_in_compilation, _old_in_execution, _old_display_errors; \

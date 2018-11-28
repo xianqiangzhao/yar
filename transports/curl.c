@@ -141,6 +141,7 @@ int php_yar_curl_open(yar_transport_interface_t *self, zend_string *address, lon
 	char buf[1024];
 	CURLcode error = CURLE_OK;
 	yar_curl_data_t *data = (yar_curl_data_t *)self->data;
+	zval *configs = (zval *)*msg;
 
 	if (options & YAR_PROTOCOL_PERSISTENT) {
 		zend_resource *le;
@@ -179,7 +180,7 @@ int php_yar_curl_open(yar_transport_interface_t *self, zend_string *address, lon
 			new_le.type = le_plink;
 			new_le.ptr = con;
 
-			if (zend_hash_str_update_ptr(&EG(persistent_list), buf, key_len, (void *)&new_le) != NULL) {
+			if (zend_hash_str_update_mem(&EG(persistent_list), buf, key_len, (void *)&new_le, sizeof(new_le)) != NULL) {
 				data->plink = plink;
 			} else {
 				data->persistent = 0;
@@ -245,6 +246,18 @@ regular_link:
 	snprintf(buf, sizeof(buf), "Hostname: %s", url->host);
 	buf[sizeof(buf) - 1] = '\0';
 	data->headers = curl_slist_append(data->headers, buf);
+
+	if (configs && IS_ARRAY == Z_TYPE_P(configs)) {
+		zval *headers = zend_hash_index_find(Z_ARRVAL_P(configs), YAR_OPT_HEADER);
+		if (headers) {
+			zval *val;
+			ZEND_HASH_FOREACH_VAL(Z_ARRVAL_P(headers), val) {
+				if (Z_TYPE_P(val) != IS_STRING) continue;
+				data->headers = curl_slist_append(data->headers, Z_STRVAL_P(val));
+			}ZEND_HASH_FOREACH_END();
+		}
+	}
+
 	curl_easy_setopt(data->cp, CURLOPT_HTTPHEADER, data->headers);
 
 	curl_easy_setopt(cp, CURLOPT_WRITEFUNCTION, php_yar_curl_buf_writer);
@@ -432,7 +445,11 @@ int php_yar_curl_send(yar_transport_interface_t* self, yar_request_t *request, c
 	DEBUG_C(ZEND_ULONG_FMT": pack request by '%.*s', result len '%ld', content: '%.32s'", 
 			request->id, 7, ZSTR_VAL(payload), ZSTR_LEN(payload), ZSTR_VAL(payload) + 8);
 
+#if PHP_VERSION_ID < 70300
 	php_yar_protocol_render(&header, request->id, data->host->user, data->host->pass, ZSTR_LEN(payload), 0);
+#else
+	php_yar_protocol_render(&header, request->id, ZSTR_VAL(data->host->user), ZSTR_VAL(data->host->pass), ZSTR_LEN(payload), 0);
+#endif
 
 	smart_str_appendl(&data->postfield, (char *)&header, sizeof(yar_header_t));
 	smart_str_appendl(&data->postfield, ZSTR_VAL(payload), ZSTR_LEN(payload));
@@ -822,7 +839,7 @@ yar_transport_multi_t yar_transport_curl_multi = {
 
 /* {{{ yar_transport_t yar_transport_curl
  */
-yar_transport_t yar_transport_curl = {
+const yar_transport_t yar_transport_curl = {
 	"curl",
 	php_yar_curl_init,
 	php_yar_curl_destroy,
